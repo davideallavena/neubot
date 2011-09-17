@@ -195,6 +195,23 @@ else
     logger -p daemon.info -t $0 'Creating .skip-checks hint file'
     touch $VERSIONDIR/.skip-checks
 
+    #
+    # Fixup /var/neubot
+    # This used to be done by Neubot agent itself but now this is not
+    # possible anymore because the agent now runs as a nonprivileged
+    # user.
+    #
+
+    logger -p daemon.info -t $0 'Fixing /var/neubot up'
+    test -d /var/neubot || install -d -o _neubot -g _neubot /var/neubot
+    test -f /var/neubot/database.sqlite3 || install -m644 -o _neubot \
+               -g _neubot /dev/null /var/neubot/database.sqlite3
+
+    chown _neubot /var/neubot /var/neubot/database.sqlite3
+    chgrp _neubot /var/neubot /var/neubot/database.sqlite3
+    chmod 644 /var/neubot/database.sqlite3
+    chmod 755 /var/neubot
+
     logger -p daemon.info -t $0 'Running sync(8)'
     sync
 fi

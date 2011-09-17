@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN"
+    "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+
+    <!-- Label to start/stop via launchctl(1) -->
+    <key>Label</key>
+    <string>org.neubot.agent</string>
+
+    <!-- Start the "agent" component of Neubot, i.e. the component
+	 that performs measurements and shows the local web user
+	 interface.  The command line arguments tell the agent not
+	 to fork() and to use syslog.  Additionally we need to force
+	 the database path because Neubot is run as a normal user
+	 and not as a root user.  This means that we should in some
+	 way guarantee that the normal user can write into such
+	 database file (we do that in VERSIONDIR/start.sh). -->
+    <key>ProgramArguments</key>
+    <array>
+      <string>/usr/bin/python</string>
+      <string>/usr/local/share/neubot/0.004002999/neubot/agent.py</string>
+      <string>-D</string>
+      <string>agent.use_syslog=1</string>
+      <string>-D</string>
+      <string>agent.daemonize=0</string>
+      <string>-f</string>
+      <string>/var/neubot/database.sqlite3</string>
+    </array>
+
+    <!-- The "agent" job runs in the context of the unpriviledged
+         user and group ``_neubot``.  We also need to initialize
+         the supplementary groups. -->
+    <key>UserName</key>
+    <string>_neubot</string>
+    <key>GroupName</key>
+    <string>_neubot</string>
+    <key>InitGroups</key>
+    <true/>
+
+    <!-- This PLIST is not installed in /Library/LaunchDaemons
+         so it can be RunAtLoad.  What happens is that the org.neubot
+         job, which is started at boot time, loads this one as soon
+         as possible. -->
+    <key>RunAtLoad</key>
+    <true/>
+
+  </dict>
+</plist>

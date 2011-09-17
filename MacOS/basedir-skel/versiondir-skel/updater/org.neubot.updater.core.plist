@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN"
+      "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+
+    <!-- Label to start/stop via launchctl(1) -->
+    <key>Label</key>
+    <string>org.neubot.updater.core</string>
+
+    <!-- Start the core component of the updater.  The version
+         number is automatically updated by the scripts/release.sh
+         convenience script.  -->
+    <key>ProgramArguments</key>
+    <array>
+      <string>/usr/bin/python</string>
+      <string>/usr/local/share/neubot/0.004002999/updater/core.py</string>
+    </array>
+
+    <!-- Note that here we don't specify any user or group because
+         the core component MUST run as root.  Privileges are needed
+         to unpack the tarball and restart the new version. -->
+
+    <!-- The core component is started periodically to check for
+         updates, as detailed below. -->
+    <key>RunAtLoad</key>
+    <false/>
+
+    <!-- Instruct launchd(8) to start this job every 1800 seconds,
+         i.e. half an hour, to check for updates. -->
+    <key>StartInterval</key>
+    <integer>1800</integer>
+
+  </dict>
+</plist>

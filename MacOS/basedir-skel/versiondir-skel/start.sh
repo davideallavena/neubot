@@ -46,11 +46,16 @@ logger -p daemon.info -t $0 "Neubot versiondir: $VERSIONDIR"
 $VERSIONDIR/prerun.sh
 
 #
-# Start the current version of Neubot.  Note that we don't
-# go in the background because launchd(8) will be confused by
-# that.
-# We don't invoke updater/unix.py via main/__init__.py
-# because unix.py is python3-safe and the updater must be
-# robust to unexpected upgrades of the system python.
+# Start the current version of Neubot, indirectly via the
+# launchctl(1) command.  This is needed because the job
+# must run in the context of the ``_neubot`` user, while
+# this script is running as root.
+# We also load the PLIST for the two components of the
+# updater process.  They will not start immediately: the
+# core component will run every 30 seconds while the
+# dload one is started when someone connects to the well-
+# know socket ``/var/run/neubot-dload.sock``.
 #
-exec /usr/bin/python $VERSIONDIR/neubot/updater/unix.py -D
+/bin/launchctl load $VERSIONDIR/updater/org.neubot.updater.dload.plist
+/bin/launchctl load $VERSIONDIR/updater/org.neubot.updater.core.plist
+/bin/launchctl load $VERSIONDIR/org.neubot.agent.plist
