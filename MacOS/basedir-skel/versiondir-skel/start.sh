@@ -52,10 +52,10 @@ $VERSIONDIR/prerun.sh
 # this script is running as root.
 # We also load the PLIST for the two components of the
 # updater process.  They will not start immediately: the
-# core component will run every 30 seconds while the
+# core component will run every 30 minutes while the
 # dload one is started when someone connects to the well-
 # know socket ``/var/run/neubot-dload.sock``.
 #
+/bin/launchctl load $VERSIONDIR/org.neubot.agent.plist
 /bin/launchctl load $VERSIONDIR/updater/org.neubot.updater.dload.plist
 /bin/launchctl load $VERSIONDIR/updater/org.neubot.updater.core.plist
-/bin/launchctl load $VERSIONDIR/org.neubot.agent.plist

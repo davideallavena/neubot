@@ -112,7 +112,7 @@ def __main():
 
     # Check response
     if response.status != 200:
-        syslog.syslog(syslog.LOG_ERR, 'HTTP response: %d' % response.status)
+        syslog.syslog(syslog.LOG_ERR, 'Bad HTTP response: %d' % response.status)
         sys.exit(1)
 
     # Bufferize

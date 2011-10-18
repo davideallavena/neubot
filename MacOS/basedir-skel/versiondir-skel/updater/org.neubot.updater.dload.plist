@@ -30,7 +30,8 @@
     <!-- Instruct launchd(8) to listen for incoming connections
          on a well-known UNIX domain socket address.  Please, note
          that launchd(8) will create the socket and setup the
-         proper permissions. -->
+         proper permissions.   Please, note that ``/var/run`` is
+         part of the standard MacOSX hier(7). -->
     <key>Sockets</key>
     <dict>
       <key>Listeners</key>
@@ -44,7 +45,10 @@
 
     <!-- Instruct launchd(8) to accept() new connections on the
          well-known UNIX domain socket and pass the connected
-         socket as the dload component stdin, stdout and stderr. -->
+         socket as the dload component stdin, stdout and stderr.
+         In particular, the wait flag instructs launchd(8) to
+         accept() on behalf of dload.py and pass it the connected
+         socket instead of the listening socket. -->
     <key>inetdCompatibility</key>
     <dict>
       <key>Wait</key>

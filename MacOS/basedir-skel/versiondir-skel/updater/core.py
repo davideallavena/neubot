@@ -111,7 +111,7 @@ def __download(address, rpath, tofile=False, https=False, maxbytes=MAXLENGTH):
         scheme = 'https'
     else:
         scheme = 'http'
-    if rpath[0] == '/':
+    if rpath.startswith('/'):
         rpath = rpath[1:]
     if sys.version_info[0] == 3:
         uri = bytes('%s://%s/%s\n' % (scheme, address, rpath), 'utf-8')
@@ -129,7 +129,7 @@ def __download(address, rpath, tofile=False, https=False, maxbytes=MAXLENGTH):
             break
 
         total += len(data)
-        if total >= MAXLENGTH:
+        if total > MAXLENGTH:
             raise RuntimeError('Response too big')
 
         body.append(data)
@@ -196,13 +196,16 @@ def __download(address, rpath, tofile=False, https=False, maxbytes=MAXLENGTH):
     #
     lfdesc = os.open(lpath, os.O_RDWR|os.O_CREAT, 384)
 
+    #
     # Write into file
-    while remainder:
-        count = os.write(lfdesc, remainder)
-        remainder = remainder[count:]
+    # Use os.fdopen() to wrap the filedesc so we save
+    # a loop and some string copies.
+    #
+    lfptr = os.fdopen(lfdesc, 'wb')
+    lfptr.write(remainder)
 
     # Close the file
-    os.close(lfdesc)
+    lfptr.close()
 
     # Return its path
     syslog.syslog(syslog.LOG_ERR, 'Response saved to: %s' % lpath)
@@ -230,7 +233,7 @@ def __download_sha256sum(version, address):
     '''
     sha256 = __download(address, '/updates/%s.tar.gz.sha256' % version)
     sha256 = sha256.strip()
-    match = re.match('^([a-fA-F0-9]+)  %s.tar.gz$' % version, sha256)
+    match = re.match('^([a-fA-F0-9]{64})  %s.tar.gz$' % version, sha256)
     if not match:
         raise ValueError('Invalid sha256: %s' % __printable_only(sha256))
     else:
@@ -243,6 +246,11 @@ def __verify_sig(signature, tarball):
      is ``VERSIONDIR/pubkey.pem``.  We assume the signature
      algorithm is SHA256.
     '''
+
+    #
+    # Note that OpenSSL is part of the base MacOS
+    # system.
+    #
 
     cmdline = ['/usr/bin/openssl', 'dgst', '-sha256',
                '-verify', '%s/pubkey.pem' % VERSIONDIR,
@@ -274,13 +282,14 @@ def __really_check_for_updates(server):
                   'Update available: %s -> %s' %
                   (VERSION, nversion))
 
+    return nversion
+
 def __download_and_verify_update(server, nversion):
 
     '''
-     If an update is available, download the updated tarball
-     and verify its sha256sum.  Returns the name of the downloaded
-     tarball if an update is available.  Otherwise, it returns
-     None.
+     If an update is available, download the updated tarball and
+     verify its sha256sum.  Returns the name of the downloaded file
+     or None.
     '''
 
     # Get checksum
@@ -332,7 +341,7 @@ def __install_new_version(version):
     # Make file names
     targz = os.sep.join([BASEDIR, '%s.tar.gz' % version])
     sigfile = '%s.sig' % targz
-    srcdir = os.sep.join([BASEDIR, '%s' % version])
+    newsrcdir = os.sep.join([BASEDIR, '%s' % version])
 
     # Extract from the tarball
     archive = tarfile.open(targz, mode='r:gz')
@@ -348,10 +357,10 @@ def __install_new_version(version):
     #
 
     # Compile all modules
-    compileall.compile_dir(srcdir, quiet=1)
+    compileall.compile_dir(newsrcdir, quiet=1)
 
     # Write .neubot-installed-ok file
-    filep = open('%s/.neubot-installed-ok' % srcdir, 'wb')
+    filep = open('%s/.neubot-installed-ok' % newsrcdir, 'wb')
     filep.close()
 
     # Call sync
@@ -434,7 +443,8 @@ def __main():
         # Process command line options
         for name, value in options:
             if name == '--check':
-                __really_check_for_updates('releases.neubot.org')
+                result = __really_check_for_updates('releases.neubot.org')
+                print(result)
                 sys.exit(0)
             elif name == '--download':
                 __download_and_verify_update('releases.neubot.org', value)
