@@ -42,9 +42,10 @@
 
 import asyncore
 import collections
+import os
+import signal
 import syslog
 import sys
-import os
 
 if sys.version_info[0] == 3:
     import http.client as __httplib
@@ -81,13 +82,37 @@ def __main():
     syslog.openlog('neubot [updater/dload]', syslog.LOG_PID,
                    syslog.LOG_DAEMON)
 
+    #
+    # Reopen standard input and standard output as binary
+    # streams, which is the proper way to deal with sockets
+    # and simplifies the copy-back code.
+    #
+    sys.stdin = os.fdopen(sys.stdin.fileno(), 'rb')
+    sys.stdout = os.fdopen(sys.stdout.fileno(), 'wb')
+
+    #
+    # We cannot set a timeout on stdio sockets in a simple
+    # way because they are not sockets when testing.  So
+    # we set alarm to avoid being stuck forever while reading
+    # the URI.
+    #
+    signal.alarm(30)
+
     syslog.syslog(syslog.LOG_INFO, 'Waiting for URI...')
 
     # Read URI from stdin
     uri = sys.stdin.readline().strip()
     sys.stdin.close()
+    if sys.version_info[0] == 3:
+        uri = str(uri, 'utf-8')
 
     syslog.syslog(syslog.LOG_INFO, 'Received URI: %s' % uri)
+
+    #
+    # Remove alarm and rely on the socket code from
+    # this point on.
+    #
+    signal.alarm(0)
 
     # Parse URI
     scheme, netloc, path = __urlparse.urlsplit(uri)[0:3]
@@ -135,19 +160,18 @@ def __main():
     syslog.syslog(syslog.LOG_INFO, 'Body is %d bytes' % length)
 
     #
-    # Copy back
-    # We must use os.write() because Python 3 sys.stdout
-    # wants a string and not raw data.
+    # Re-add alarm since we don't want to get stuck
+    # while copying back.
     #
+    signal.alarm(30)
+
+    # Copy back
     if sys.version_info[0] == 3:
         header = bytes('OK %d\n' % length, 'utf-8')
     else:
         header = 'OK %d\n' % length
     body.appendleft(header)
-    for data in body:
-        while data:
-            count = os.write(sys.stdout.fileno(), data)
-            data = data[count:]
+    sys.stdout.write(b''.join(body))
 
     syslog.syslog(syslog.LOG_INFO, 'Copied body to stdout')
 
