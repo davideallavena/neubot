@@ -46,16 +46,15 @@ logger -p daemon.info -t $0 "Neubot versiondir: $VERSIONDIR"
 $VERSIONDIR/prerun.sh
 
 #
-# Start the current version of Neubot, indirectly via the
-# launchctl(1) command.  This is needed because the job
-# must run in the context of the ``_neubot`` user, while
-# this script is running as root.
-# We also load the PLIST for the two components of the
-# updater process.  They will not start immediately: the
-# core component will run every 30 minutes while the
-# dload one is started when someone connects to the well-
-# know socket ``/var/run/neubot-dload.sock``.
+# Unconditionally remove all previous version's COMPONENTS from
+# launchd(8).  Then load new version's property lists.
+# The ``agent`` component is started immediately, ``updater.dload``
+# runs on demand and ``updater.core`` is invoked periodically.
 #
-/bin/launchctl load $VERSIONDIR/org.neubot.agent.plist
-/bin/launchctl load $VERSIONDIR/updater/org.neubot.updater.dload.plist
-/bin/launchctl load $VERSIONDIR/updater/org.neubot.updater.core.plist
+# FIXME This code assumes that all PLISTs are in VERSIONDIR,
+# which is not the case.
+#
+for COMPONENT in agent updater.core updater.dload; do
+    /bin/launchctl remove org.neubot.$COMPONENT || true
+    /bin/launchctl load $VERSIONDIR/org.neubot.$COMPONENT.plist
+done

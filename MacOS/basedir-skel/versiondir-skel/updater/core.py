@@ -375,18 +375,28 @@ def __install_new_version(version):
 
 def __switch_to_new_version():
     ''' Switch to the a new version of Neubot '''
-    os.execv('/bin/sh', ['/bin/sh', '%s/start.sh' % BASEDIR])
-    syslog.syslog(syslog.LOG_ERR, 'execv: %m')
-    raise RuntimeError('Failed to switch to new version')
 
-def __stop_neubot_agent():
-    ''' Stop neubot agent using launchctl(1) '''
-    # Note: unload also stops it if needed
-    cmdline = ['/bin/launchctl', 'unload',
-      '%s/org.neubot.agent.plist' % VERSIONDIR]
+    #
+    # The job should be stopped but the extra stop command
+    # here won't hurt anyone.
+    #
+    cmdline = ['/bin/launchctl', 'stop', 'org.neubot']
     retval = subprocess.call(cmdline)
     if retval != 0:
-        raise ValueError('Failed to stop Neubot agent')
+        syslog.syslog(syslog.LOG_INFO, 'Failed to stop `org.neubot`, most '
+                      'likely because it was already stopped')
+
+    #
+    # Restart the job.  Which means basically that the new
+    # version VERSIONDIR/start.sh will remove existing Neubot
+    # jobs and will register new version ones.
+    # There is not much we can do here to repair if this
+    # command fails.
+    #
+    cmdline = ['/bin/launchctl', 'start', 'org.neubot']
+    reval = subprocess.call(cmdline)
+    if retval != 0:
+        syslog.syslog(syslog.LOG_ERR, 'Failed to start `org.neubot`')
 
 def __check_for_updates():
 
@@ -404,7 +414,6 @@ def __check_for_updates():
         return
 
     __download_and_verify_update('releases.neubot.org', nversion)
-    __stop_neubot_agent()
     __install_new_version(nversion)
     __switch_to_new_version()
 
