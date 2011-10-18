@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN"
+    "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+
+    <!-- Modified version of the actual plist -->
+
+    <key>Label</key>
+    <string>org.neubot.updater_test.dload</string>
+
+    <key>ProgramArguments</key>
+    <array>
+      <string>/usr/bin/python</string>
+      <string>@PWD@/MacOS/basedir-skel/versiondir-skel/updater/dload.py</string>
+    </array>
+
+    <key>Sockets</key>
+    <dict>
+      <key>Listeners</key>
+      <dict>
+        <key>SockPassive</key>
+        <true/>
+        <key>SockPathName</key>
+        <string>__SOCKET.sock</string>
+      </dict>
+    </dict>
+
+    <key>inetdCompatibility</key>
+    <dict>
+      <key>Wait</key>
+      <false/>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+  </dict>
+</plist>

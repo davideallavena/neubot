@@ -61,7 +61,10 @@ VERSION = "0.004002999"
 # Launchd(8) takes care of this socket and spawns the
 # dload component whenever we connect to it.
 #
-DLOAD_SOCK = '/var/run/neubot-dload.sock'
+try:
+    DLOAD_SOCK = os.environ['NEUBOT_UPDATER_SOCKET']
+except KeyError:
+    sys.exit('Missing NEUBOT_UPDATER_SOCKET environment variable')
 
 #
 # This is the maximum response lenght that we will accept

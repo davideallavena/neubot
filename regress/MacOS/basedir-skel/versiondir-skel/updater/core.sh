@@ -24,8 +24,32 @@ set -e
 
 VERSIONDIR=MacOS/basedir-skel/versiondir-skel
 
+#
+# Allow for nonroot testing too.
+# Instruct core.py to use an alternative UNIX domain socket
+# and register the dload.py component using an alternative
+# property list file.
+# Testing as root is possible when/if Neubot is already
+# correctly installed.  Note that testing as root is closer
+# to actual operating conditions.
+#
+if [ `id -u` -ne 0 ]; then
+    export NEUBOT_UPDATER_SOCKET=__SOCKET.sock
+    cp regress/$VERSIONDIR/updater/dload.plist __DLOAD.plist
+    ./scripts/sed_inplace "s|@PWD@|`pwd`|g" __DLOAD.plist
+    launchctl unload __DLOAD.plist
+    launchctl load __DLOAD.plist
+else
+    export NEUBOT_UPDATER_SOCKET=/var/run/neubot-dload.sock
+fi
+
 python $VERSIONDIR/updater/core.py --get-latest
-python $VERSIONDIR/updater/core.py --get-sha256sum=0.004002005
+python $VERSIONDIR/updater/core.py --get-sha256sum=0.004002999
 python $VERSIONDIR/updater/core.py --check
-python $VERSIONDIR/updater/core.py --download=0.004002005
-python $VERSIONDIR/updater/core.py --install=0.004002005
+python $VERSIONDIR/updater/core.py --download=0.004002999
+python $VERSIONDIR/updater/core.py --install=0.004002999
+
+if [ `id -u` -ne 0 ]; then
+    launchctl unload __DLOAD.plist
+    rm -f __SOCKET.sock __DLOAD.plist
+fi

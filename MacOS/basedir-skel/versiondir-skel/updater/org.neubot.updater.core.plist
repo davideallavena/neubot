@@ -31,5 +31,15 @@
     <key>StartInterval</key>
     <integer>1800</integer>
 
+    <!-- We pass the socket path via environment so we can
+         override it in the testing unit.  Note that the
+         default socket path, /var/run, is part of MacOSX
+         standard hier(7). -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>NEUBOT_UPDATER_SOCKET</key>
+        <string>/var/run/neubot-dload.sock</string>
+    <dict>
+
   </dict>
 </plist>
