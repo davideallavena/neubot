@@ -275,7 +275,7 @@ class StreamBitTorrent(Stream):
 
         elif t == BITFIELD:
             LOG.debug("< BITFIELD {bitfield}")
-            self.parent.got_bitfield(message[1:])
+            self.parent.got_bitfield(self, message[1:])
 
         elif t == REQUEST:
             i, a, b = struct.unpack("!xIII", message)

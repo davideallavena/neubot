@@ -117,6 +117,7 @@ class RandomBlocks(object):
         return self._generator.next()
 
 RANDOMBLOCKS = RandomBlocks()
+BTPIECES = RandomBlocks(1 << 17)
 
 #
 # XXX Create and discard the first block at the very
@@ -125,6 +126,7 @@ RANDOMBLOCKS = RandomBlocks()
 # startup as root.
 #
 RANDOMBLOCKS.get_block()
+BTPIECES.get_block()
 
 class RandomBody(object):
 
