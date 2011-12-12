@@ -55,8 +55,11 @@ class ProbeBitTorrentCommon(StreamHandler):
         self.saved_ticks = collections.deque()
         self.unchoked = False
         self.interested = False
+        self.exp_duration = 0
+        self.begin_download = 0
+        self.begin_upload = 0
 
-        # TODO refactor
+        # BitTorrent stream assumes they exist
         self.infohash = ''.join([chr(0) for _ in range(20)])
         self.my_id = ''.join([chr(0) for _ in range(20)])
         self.numpieces = NUMPIECES
@@ -94,19 +97,16 @@ class ProbeBitTorrentCommon(StreamHandler):
     # upload has run for enough seconds.
     #
 
-    def start_download(self, stream, duration=None):
+    @staticmethod
+    def start_download(stream):
         ''' Initiates the download test '''
         stream.send_interested()
-        if duration:
-            if duration < 2:
-                duration = 2
-            LOG.info('duration: %f' % duration)
-            POLLER.sched(duration, self.stop_download)
 
     def got_unchoke(self, stream):
         ''' We received the UNCHOKE message '''
         assert(self.unchoked == False)
         self.unchoked = True
+        self.begin_download = utils.ticks()
         for _ in range(BURST):
             self._send_next_request(stream)
 
@@ -116,8 +116,10 @@ class ProbeBitTorrentCommon(StreamHandler):
         #print len(self.saved_ticks), self.unchoked
         if self.unchoked:
             self._send_next_request(stream)
-            diff = utils.ticks() - ticks
-            if diff < 1:
+            now = utils.ticks()
+            if now - self.begin_download > self.exp_duration:
+                self.unchoked = False
+            if now - ticks < 1:
                 self._send_next_request(stream)
         elif not self.saved_ticks:
             stream.send_not_interested()
@@ -127,12 +129,6 @@ class ProbeBitTorrentCommon(StreamHandler):
         ''' Convenience function to send next request '''
         self.saved_ticks.append(utils.ticks())
         stream.send_request(random.random() % NUMPIECES, 0, PIECE_LEN)
-
-    def stop_download(self):
-        ''' Stop the download when we are the client '''
-        LOG.info('invoked stop download')
-        self.unchoked = False
-        print self.unchoked
 
     def got_choke(self, stream):
         ''' We have received the CHOKE message '''
@@ -147,18 +143,15 @@ class ProbeBitTorrentCommon(StreamHandler):
     # uploader responds with an UNCHOKE message.  From then
     # on, it responds to each REQUEST with a PIECE, until it
     # receives the NOT_INTERESTED message.
-    # The client knows how much time the upload should take,
-    # so, when it is the uploader, it registers stop_upload()
-    # with the POLLER.  This method will send a CHOKE and
-    # the downloader will response with NOT_INTERESTED.
-    # Conversely, when the uploader is the server, the client
-    # will send NOT_INTERESTED when needed.
+    # If the maximum duration is known, i.e. we are the
+    # client, we stop the upload when it has run for too
+    # much time.  Otherwise, we rely on the other peer
+    # to do so.
     #
 
     def got_interested(self, stream):
         ''' We received the INTERESTED message '''
         self.interested = True
-        self.start_upload(stream)
         stream.send_unchoke()
 
     def got_request(self, stream, index, begin, length):
@@ -168,16 +161,14 @@ class ProbeBitTorrentCommon(StreamHandler):
         elif length != PIECE_LEN:
             raise RuntimeError('Invalid request length')
         else:
+            if self.exp_duration:
+                now = utils.ticks()
+                if not self.begin_upload:
+                    self.begin_upload = now
+                if now - self.begin_upload > self.exp_duration:
+                    stream.send_choke()
             stream.send_piece(index, begin,
               BTPIECES.get_block())
-
-    def start_upload(self, stream):
-        ''' Invoked when we're starting upload '''
-
-    @staticmethod
-    def stop_upload(stream):
-        ''' Stop upload when we're the client '''
-        stream.send_choke()
 
     def got_not_interested(self, stream):
         ''' We received the NOT_INTERESTED message '''
@@ -199,31 +190,15 @@ class ProbeBitTorrentClient(ProbeBitTorrentCommon):
 
     ''' Client-side code for BitTorrent probe '''
 
-    def __init__(self, poller):
-        ProbeBitTorrentCommon.__init__(self, poller)
-        self.rtt = 0
-
     def connection_made(self, sock, rtt=0):
-        self.rtt = rtt
+        self.exp_duration = rtt * MINRTT
         stream = StreamBitTorrent(self.poller)
         stream.attach(self, sock, self.conf)
 
     def start_test(self, stream):
         ''' Invoked when we can start the test '''
         LOG.info('BitTorrent: start download')
-        self.start_download(stream, self.rtt * MINRTT)
-
-    def download_complete(self, stream):
-        ''' Invoked when the download test is complete '''
-        LOG.info('BitTorrent: download complete')
-
-    def start_upload(self, stream):
-        ''' Invoked when we're starting upload '''
-        LOG.info('BitTorrent: start upload')
-        delay = self.rtt * MINRTT
-        if delay < 2:
-            delay = 2
-        POLLER.sched(delay, self.stop_upload, stream)
+        self.start_download(stream)
 
     def upload_complete(self, stream):
         ''' Invoked when the upload is complete '''
@@ -239,10 +214,6 @@ class ProbeBitTorrentServer(ProbeBitTorrentCommon):
         server = self.__class__(self.poller)
         server.configure(self.conf)
         stream.attach(server, sock, server.conf)
-
-    def start_upload(self, stream):
-        ''' Invoked when we're starting upload '''
-        LOG.info('BitTorrent: start upload')
 
     def upload_complete(self, stream):
         ''' Invoked when the upload is complete '''
