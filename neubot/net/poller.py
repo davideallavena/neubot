@@ -71,11 +71,10 @@ class Task(object):
     # In particular timestamp is used to print the timestamp of
     # the next rendezvous in <rendezvous/client.py>.
     #
-    def __init__(self, delta, func, param):
+    def __init__(self, delta, func):
         self.time = ticks() + delta
         self.timestamp = timestamp() + int(delta)
         self.func = func
-        self.param = param
 
     def __repr__(self):
         return ("Task: time=%(time)f timestamp=%(timestamp)d func=%(func)s" %
@@ -92,8 +91,8 @@ class Poller(object):
         self.tasks = []
         self.sched(CHECK_TIMEOUT, self.check_timeout)
 
-    def sched(self, delta, func, param=None):
-        task = Task(delta, func, param)
+    def sched(self, delta, func):
+        task = Task(delta, func)
         self.pending.append(task)
         return task
 
@@ -202,10 +201,7 @@ class Poller(object):
                 index = index + 1
 
                 try:
-                    if task.param:
-                        task.func(task.param)
-                    else:
-                        task.func()
+                    task.func()
                 except (KeyboardInterrupt, SystemExit):
                     raise
                 except:
