@@ -116,7 +116,6 @@ class ProbeBitTorrentCommon(StreamHandler):
         ''' We received the UNCHOKE message '''
         self.unchoked = True
         LOG.info('BitTorrent: start download')
-        self.begin = utils.ticks()
         for _ in range(BURST):
             self._send_next_request(stream)
 
@@ -124,9 +123,16 @@ class ProbeBitTorrentCommon(StreamHandler):
         ''' We received the PIECE message '''
         ticks = self.saved_ticks.popleft()
         now = utils.ticks()
+        if not self.begin:
+            stream.bytes_recv = 0
+            self.begin = utils.ticks()
         if (not self.duration and not self.unchoked) or (self.duration and
                                        now - self.begin > self.duration):
             if not self.saved_ticks:
+                LOG.info('  BitTorrent: elapsed %f' % (now - self.begin))
+                LOG.info('  BitTorrent: bytes %d' % stream.bytes_recv)
+                LOG.info('  BitTorrent: speed %s' % utils.speed_formatter(
+                                 stream.bytes_recv/(now - self.begin)))
                 LOG.info('BitTorrent: download complete')
                 stream.send_not_interested()
                 self.download_complete(stream)
@@ -186,6 +192,7 @@ class ProbeBitTorrentConnector(ProbeBitTorrentCommon):
         ''' Invoked when the new connection is made '''
         LOG.info('BitTorrent: start test')
         self.duration = rtt * MINRTT
+        LOG.info('  BitTorrent: exp duration %f' % self.duration)
         stream = StreamBitTorrent(self.poller)
         stream.attach(self, sock, self.conf)
 
