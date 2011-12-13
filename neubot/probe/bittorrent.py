@@ -52,7 +52,7 @@ BURST = 4
 # The minimum duration of the download phase,
 # expressed in RTTs.
 #
-MINRTT = 100
+MINRTT = 300
 
 #
 # Remarks on the test implementation:
@@ -123,6 +123,7 @@ class ProbeBitTorrentCommon(StreamHandler):
         ''' We received the PIECE message '''
         ticks = self.saved_ticks.popleft()
         now = utils.ticks()
+        LOG.info('delay: %f' % (now - ticks))
         if not self.begin:
             stream.bytes_recv = 0
             self.begin = utils.ticks()
@@ -138,13 +139,18 @@ class ProbeBitTorrentCommon(StreamHandler):
                 self.download_complete(stream)
             return
         self._send_next_request(stream)
-        if now - ticks < 1:
+        elapsed = now - ticks
+        if elapsed < 0.75:
             self._send_next_request(stream)
+            if elapsed < 0.5:
+                self._send_next_request(stream)
+                if elapsed < 0.25:
+                    self._send_next_request(stream)
 
     def _send_next_request(self, stream):
         ''' Convenience function to send next request '''
         self.saved_ticks.append(utils.ticks())
-        stream.send_request(random.random() % NUMPIECES, 0, PIECE_LEN)
+        stream.send_request(int(random.random() % NUMPIECES), 0, PIECE_LEN)
 
     def got_choke(self, stream):
         ''' We have received the CHOKE message '''
@@ -232,10 +238,10 @@ def main():
     ''' main function '''
     if sys.argv[1] == '--client':
         client = ProbeBitTorrentConnector(POLLER)
-        client.connect(('127.0.0.1', 6882))
+        client.connect(('neubot.blupixel.net', 6882))
     elif sys.argv[1] == '--server':
         server = ProbeBitTorrentListener(POLLER)
-        server.listen(('127.0.0.1', 6882))
+        server.listen(('0.0.0.0', 6882))
     else:
         sys.exit('Usage: probe/bittorrent.py [--client|--server]')
     POLLER.loop()
