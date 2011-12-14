@@ -46,26 +46,26 @@ from neubot import utils
 # Length of the pieces we send on the
 # wire.
 #
-PIECE_LEN = os.environ.get('PIECE_LEN', 1 << 17)
+PIECE_LEN = int(os.environ.get('PIECE_LEN', 1 << 17))
 BTPIECES = RandomBlocks(PIECE_LEN)
 
 #
 # The number of requests sent at the beginning of
 # the download phase of the test.
 #
-BURST = os.environ.get('BURST', 4)
+BURST = int(os.environ.get('BURST', 4))
 
 #
 # The minimum duration of the download phase,
 # expressed in RTTs.
 #
-MINRTT = os.environ.get('MINRTT', 100)
+MINRTT = int(os.environ.get('MINRTT', 100))
 
 #
 # Maximum delay in the algorithm to control
 # the delay.
 #
-MAXDELAY = os.environ.get('MAXDELAY', 1)
+MAXDELAY = int(os.environ.get('MAXDELAY', 1))
 
 sys.stdout.write('PIECE_LEN %d BURST %d MINRTT %d MAXDELAY %d\n' % (
                   PIECE_LEN, BURST, MINRTT, MAXDELAY))
