@@ -58,7 +58,7 @@ BURST = 4
 # The minimum duration of the download phase,
 # expressed in RTTs.
 #
-MINRTT = 300
+MINRTT = 100
 
 #
 # Remarks on the test implementation:
