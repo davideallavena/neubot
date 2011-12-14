@@ -245,6 +245,7 @@ class ProbeBitTorrentListener(ProbeBitTorrentCommon):
         ''' Invoked when the download test is complete '''
         LOG.info('BitTorrent: test complete')
         stream.close()
+        sys.exit(0)
 
 def main():
     ''' main function '''
