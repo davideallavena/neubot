@@ -32,15 +32,21 @@ if __name__ == '__main__':
 from neubot.bittorrent.bitfield import Bitfield
 from neubot.bittorrent.bitfield import make_bitfield
 from neubot.bittorrent.config import NUMPIECES
-from neubot.bittorrent.config import PIECE_LEN
 from neubot.bittorrent.stream import StreamBitTorrent
 from neubot.net.poller import POLLER
 from neubot.net.stream import StreamHandler
-from neubot.utils.blocks import BTPIECES
+from neubot.utils.blocks import RandomBlocks
 
 from neubot.log import LOG
 
 from neubot import utils
+
+#
+# Length of the pieces we send on the
+# wire.
+#
+PIECE_LEN = 1<<17
+BTPIECES = RandomBlocks(PIECE_LEN)
 
 #
 # The number of requests sent at the beginning of
@@ -140,12 +146,8 @@ class ProbeBitTorrentCommon(StreamHandler):
             return
         self._send_next_request(stream)
         elapsed = now - ticks
-        if elapsed < 0.75:
+        if elapsed < 1:
             self._send_next_request(stream)
-            if elapsed < 0.5:
-                self._send_next_request(stream)
-                if elapsed < 0.25:
-                    self._send_next_request(stream)
 
     def _send_next_request(self, stream):
         ''' Convenience function to send next request '''
