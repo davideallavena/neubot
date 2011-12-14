@@ -247,12 +247,12 @@ class ProbeBitTorrentListener(ProbeBitTorrentCommon):
         stream.close()
         sys.exit(0)
 
-def main():
+def main(args):
     ''' main function '''
-    if sys.argv[1] == '--client':
+    if len(args) == 2 and args[1] == '--client':
         client = ProbeBitTorrentConnector(POLLER)
         client.connect(('neubot.blupixel.net', 6882))
-    elif sys.argv[1] == '--server':
+    elif len(args) == 2 and args[1] == '--server':
         server = ProbeBitTorrentListener(POLLER)
         server.listen(('0.0.0.0', 6882))
     else:

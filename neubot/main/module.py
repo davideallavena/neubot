@@ -49,6 +49,8 @@ MODULES = {
     "speedtest.server"    : "speedtest.server",
     "stream"              : "net.stream",
     'viewer'              : 'viewer',
+
+    'probe.bittorrent'    : 'probe.bittorrent',
 }
 
 #
