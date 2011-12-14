@@ -45,7 +45,7 @@ from neubot import utils
 # Length of the pieces we send on the
 # wire.
 #
-PIECE_LEN = 1<<17
+PIECE_LEN = 1 << 17
 BTPIECES = RandomBlocks(PIECE_LEN)
 
 #
