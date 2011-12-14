@@ -23,6 +23,7 @@
 ''' Probe the network using the BitTorrent protocol '''
 
 import collections
+import os
 import random
 import sys
 
@@ -45,20 +46,23 @@ from neubot import utils
 # Length of the pieces we send on the
 # wire.
 #
-PIECE_LEN = 1 << 17
+PIECE_LEN = os.environ.get('NEUBOT_PIECE_LEN', 1 << 17)
 BTPIECES = RandomBlocks(PIECE_LEN)
 
 #
 # The number of requests sent at the beginning of
 # the download phase of the test.
 #
-BURST = 4
+BURST = os.environ.get('NEUBOT_BURST', 4)
 
 #
 # The minimum duration of the download phase,
 # expressed in RTTs.
 #
-MINRTT = 100
+MINRTT = os.environ.get('NEUBOT_MINRTT', 100)
+
+sys.stdout.write('PIECE_LEN %d BURST %d MINRTT %d\n' % (PIECE_LEN,
+                                          BURST, MINRTT))
 
 #
 # Remarks on the test implementation:
