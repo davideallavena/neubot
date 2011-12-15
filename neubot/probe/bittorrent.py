@@ -148,8 +148,8 @@ class ProbeBitTorrentCommon(StreamHandler):
             if not self.saved_ticks:
                 LOG.info('  BitTorrent: elapsed %f' % (now - self.begin))
                 LOG.info('  BitTorrent: bytes %d' % stream.bytes_recv)
-                LOG.info('  BitTorrent: speed %s' % utils.speed_formatter(
-                                 stream.bytes_recv/(now - self.begin)))
+                LOG.info('  BitTorrent: speed %s' % (
+                  stream.bytes_recv/(now - self.begin)))
                 LOG.info('BitTorrent: download complete')
                 stream.send_not_interested()
                 self.download_complete(stream)
@@ -174,6 +174,7 @@ class ProbeBitTorrentCommon(StreamHandler):
     def got_interested(self, stream):
         ''' We received the INTERESTED message '''
         self.interested = True
+        LOG.info('BitTorrent: start upload')
         self.begin = 0                          # reset
         stream.send_unchoke()
 
@@ -183,7 +184,6 @@ class ProbeBitTorrentCommon(StreamHandler):
         if self.duration:
             now = utils.ticks()
             if not self.begin:
-                LOG.info('BitTorrent: start upload')
                 self.begin = now
             if utils.ticks() - self.begin > self.duration:
                 stream.send_choke()
@@ -210,6 +210,7 @@ class ProbeBitTorrentConnector(ProbeBitTorrentCommon):
         ''' Invoked when the new connection is made '''
         LOG.info('BitTorrent: start test')
         self.duration = rtt * MINRTT
+        LOG.info('  BitTorrent: rtt %f' % rtt)
         LOG.info('  BitTorrent: exp duration %f' % self.duration)
         stream = StreamBitTorrent(self.poller)
         stream.attach(self, sock, self.conf)
@@ -245,13 +246,12 @@ class ProbeBitTorrentListener(ProbeBitTorrentCommon):
         ''' Invoked when the download test is complete '''
         LOG.info('BitTorrent: test complete')
         stream.close()
-        sys.exit(0)
 
 def main(args):
     ''' main function '''
     if len(args) == 2 and args[1] == '--client':
         client = ProbeBitTorrentConnector(POLLER)
-        client.connect(('neubot.blupixel.net', 6882))
+        client.connect(('127.0.0.1', 6882))
     elif len(args) == 2 and args[1] == '--server':
         server = ProbeBitTorrentListener(POLLER)
         server.listen(('0.0.0.0', 6882))
