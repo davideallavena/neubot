@@ -26,7 +26,6 @@
 
 import getopt
 import os.path
-import sqlite3
 import sys
 import time
 
@@ -40,6 +39,12 @@ try:
     import webkit
 except ImportError:
     sys.exit('Viewer support not available.')
+
+if __name__ == '__main__':
+    sys.path.insert(0, '.')
+
+from neubot.database import DATABASE
+from neubot.database import table_config
 
 ICON = '@DATADIR@/icons/hicolor/scalable/apps/neubot.svg'
 if not os.path.isfile(ICON) or not os.access(ICON, os.R_OK):
@@ -119,27 +124,16 @@ def main(args):
     ''' Entry point for simple gtk+webkit GUI '''
 
     try:
-        options, arguments = getopt.getopt(args[1:], 'f:')
+        options, arguments = getopt.getopt(args[1:], '')
     except getopt.error:
-        sys.exit('Usage: neubot viewer [-f database]')
-    if arguments:
-        sys.exit('Usage: neubot viewer [-f database]')
+        sys.exit('Usage: neubot viewer')
+    if options or arguments:
+        sys.exit('Usage: neubot viewer')
 
-    database = '/var/neubot/database.sqlite3'
-    for name, value in options:
-        if name == '-f':
-            database = value
-
-    address, port = '127.0.0.1', '9774'
-    connection = sqlite3.connect(database)
-    cursor = connection.cursor()
-    cursor.execute('SELECT * FROM config;')
-    for name, value in cursor:
-        if name == 'agent.api.address':
-            address = value
-        elif name == 'agent.api.port':
-            port = value
-    connection.close()
+    connection = DATABASE.connection()
+    dictionary = table_config.dictionarize(connection)
+    address = dictionary.get('neubot.api.address', '127.0.0.1')
+    port = dictionary.get('neubot.api.port', '9774')
 
     uri = STATIC_PAGE
     if __is_running(address, port):

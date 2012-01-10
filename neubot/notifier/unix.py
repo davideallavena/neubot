@@ -32,7 +32,6 @@ import asyncore
 import getopt
 import json
 import os.path
-import sqlite3
 import sys
 import syslog
 import time
@@ -50,6 +49,8 @@ except ImportError:
 if __name__ == '__main__':
     sys.path.insert(0, '.')
 
+from neubot.database import DATABASE
+from neubot.database import table_config
 from neubot import privacy
 
 NEUBOT_ICON = '@DATADIR@/icons/hicolor/scalable/apps/neubot.svg'
@@ -64,24 +65,17 @@ PRIVACY_EXPLANATION = \
 SHORT_PRIVACY_INTERVAL = 30
 LONG_PRIVACY_INTERVAL = 3600
 
-def __should_adjust_privacy(database_path):
+def __should_adjust_privacy():
 
     ''' Connect to the daemon, get privacy settings and return
         true if the user should adjust privacy settings '''
 
     try:
 
-        address, port = '127.0.0.1', '9774'
-
-        connection = sqlite3.connect(database_path)
-        cursor = connection.cursor()
-        cursor.execute('SELECT * FROM config;')
-        for name, value in cursor:
-            if name == 'agent.api.address':
-                address = value
-            elif name == 'agent.api.port':
-                port = value
-        connection.close()
+        connection = DATABASE.connection()
+        dictionary = table_config.dictionarize(connection)
+        address = dictionary.get('neubot.api.address', '127.0.0.1')
+        port = dictionary.get('neubot.api.port', '9774')
 
         connection = lib_http.HTTPConnection(address, port)
         connection.request('GET', '/api/config')
@@ -140,21 +134,16 @@ def main(args):
     ''' Notify the user '''
 
     try:
-        options, arguments = getopt.getopt(args[1:], 'f:')
+        options, arguments = getopt.getopt(args[1:], '')
     except getopt.error:
-        sys.exit('Usage: neubot notifier [-f database]\n')
-    if arguments:
-        sys.exit('Usage: neubot notifier [-f database]\n')
-
-    database = '/var/neubot/database.sqlite3'
-    for name, value in options:
-        if name == '-f':
-            database = value
+        sys.exit('Usage: neubot notifier\n')
+    if options or arguments:
+        sys.exit('Usage: neubot notifier\n')
 
     syslog.openlog('neubot_notify', syslog.LOG_PID, syslog.LOG_USER)
 
     while True:
-        if __should_adjust_privacy(database):
+        if __should_adjust_privacy():
             __notify_adjust_privacy()
             privacy_interval = SHORT_PRIVACY_INTERVAL
         else:
