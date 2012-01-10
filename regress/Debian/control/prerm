@@ -48,6 +48,7 @@ cleanup() {
     rm -rf /usr/share/neubot
     grep -q _neubot /etc/passwd && userdel _neubot
     grep -q _neubot /etc/group && groupdel _neubot
+    rm -rf /var/neubot
     echo 'END: cleanup'
 }
 
@@ -57,12 +58,16 @@ cleanup
 # Init
 #
 
+echo -n 'Create _neubot group and _user... '
+groupadd -r _neubot
+useradd -r -d/ -g_neubot -s/usr/sbin/nologin _neubot
+echo 'OK'
+
 echo 'BEGIN: run viewer and notifier'
-# FIXME They are not able to deal with database issues
 ./bin/neubot viewer &
 ./bin/neubot notifier &
-# Give them some time to start
-sleep 3
+# Give time to the viewer to decide neubot is not running
+sleep 30
 echo 'END: run viewer and notifier (OK)'
 
 echo -n 'Install fake /etc/init.d/neubot... '
@@ -85,11 +90,6 @@ echo -n 'Setup and compile /usr/share/neubot... '
 install -d /usr/share/neubot
 install -m644 /dev/null /usr/share/neubot/__init__.py
 install -m644 /dev/null /usr/share/neubot/__init__.pyc
-echo 'OK'
-
-echo -n 'Create _neubot group and _user... '
-groupadd -r _neubot
-useradd -r -d/ -g_neubot -s/usr/sbin/nologin _neubot
 echo 'OK'
 
 #
