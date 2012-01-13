@@ -27,6 +27,7 @@
 # along with Neubot.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+import asyncore
 import collections
 import errno
 import socket
