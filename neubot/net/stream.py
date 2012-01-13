@@ -127,6 +127,10 @@ class SocketWrapper(object):
             else:
                 return ERROR, exception
 
+BUCKET_DATA = 0
+BUCKET_EOF = 1
+BUCKET_FILE = 2
+
 #
 # To implement the protocol syntax, subclass this class and
 # implement the finite state machine described in the file
@@ -146,15 +150,11 @@ class Stream(asyncore.dispatcher):
         self.logname = None
         self.eof = False
 
-        self.close_complete = False
-        self.close_pending = False
         self.recv_blocked = False
         self.recv_pending = False
         self.recv_ssl_needs_kickoff = False
         self.send_blocked = False
-        self.send_octets = None
         self.send_queue = collections.deque()
-        self.send_pending = False
 
         self.bytes_recv_tot = 0
         self.bytes_sent_tot = 0
@@ -222,16 +222,9 @@ class Stream(asyncore.dispatcher):
         pass
 
     def close(self):
-        self.close_pending = True
-        if self.send_pending or self.close_complete:
-            return
-        self.handle_close()
+        self.send_queue.append((BUCKET_EOF, ''))
 
     def handle_close(self):
-        if self.close_complete:
-            return
-
-        self.close_complete = True
 
         self.connection_lost(None)
         self.parent.connection_lost(self)
@@ -258,12 +251,8 @@ class Stream(asyncore.dispatcher):
         return self.recv_pending or self.recv_blocked
 
     def start_recv(self):
-        if (self.close_complete or self.close_pending
-          or self.recv_pending):
-            return
 
         self.recv_pending = True
-
         if self.recv_blocked:
             return
 
@@ -307,7 +296,7 @@ class Stream(asyncore.dispatcher):
 
         if status == SUCCESS and not octets:
             self.eof = True
-            self.close()
+            self.handle_close()
             return
 
         if status == ERROR:
@@ -322,45 +311,10 @@ class Stream(asyncore.dispatcher):
     # Send path
 
     def writable(self):
-        return self.send_pending or self.send_blocked
+        return self.send_queue or self.send_blocked
 
-    def read_send_queue(self):
-        octets = None
-
-        while self.send_queue:
-            octets = self.send_queue[0]
-            if isinstance(octets, basestring):
-                # remove the piece in any case
-                self.send_queue.popleft()
-                if octets:
-                    break
-            else:
-                octets = octets.read(MAXBUF)
-                if octets:
-                    break
-                # remove the file-like when it is empty
-                self.send_queue.popleft()
-
-        if octets:
-            if type(octets) == types.UnicodeType:
-                LOG.oops("Received unicode input")
-                octets = octets.encode("utf-8")
-
-        return octets
-
-    def start_send(self, octets):
-        if self.close_complete or self.close_pending:
-            return
-
-        self.send_queue.append(octets)
-        if self.send_pending:
-            return
-
-        self.send_octets = self.read_send_queue()
-        if not self.send_octets:
-            return
-
-        self.send_pending = True
+    def start_send(self, bucket_type, bucket_val):
+        self.send_queue.append((bucket_type, bucket_val))
 
     def handle_write(self):
         if self.send_blocked:
@@ -368,34 +322,48 @@ class Stream(asyncore.dispatcher):
             self.handle_read()
             return
 
-        status, count = self.sock.sosend(self.send_octets)
+        bucket_val = None
+        while not bucket_val:
+            if not self.send_queue:
+                self.send_complete()
+                return
+            bucket_type, bucket_val = self.send_queue.popleft()
+            if bucket_type == BUCKET_EOF:
+                self.handle_close()
+                return
+            if bucket_type == BUCKET_FILE:
+                bucket_val = bucket_val.read(MAXBUF)
+
+        if type(bucket_val) == types.UnicodeType:
+            LOG.oops("Received unicode input")
+            bucket_val = bucket_val.encode("utf-8")
+
+        self._write_bucket(bucket_val)
+
+    def _write_bucket(self, bucket_val):
+        status, count = self.sock.sosend(bucket_val)
 
         if status == SUCCESS and count > 0:
             self.bytes_sent_tot += count
 
-            if count == len(self.send_octets):
-
-                self.send_octets = self.read_send_queue()
-                if self.send_octets:
-                    return
-
-                self.send_pending = False
-
-                self.send_complete()
-                if self.close_pending:
-                    self.close()
+            if count == len(bucket_val):
+                if not self.send_queue:
+                    self.send_complete()
                 return
 
-            if count < len(self.send_octets):
-                self.send_octets = buffer(self.send_octets, count)
+            if count < len(bucket_val):
+                self.send_queue.append((BUCKET_DATA,
+                  buffer(bucket_val, count)))
                 return
 
             raise RuntimeError("Sent more than expected")
 
         if status == WANT_WRITE:
+            self.send_queue.append((BUCKET_DATA, bucket_val))
             return
 
         if status == WANT_READ:
+            self.send_queue.append((BUCKET_DATA, bucket_val))
             self.recv_blocked = True
             return
 
@@ -405,7 +373,7 @@ class Stream(asyncore.dispatcher):
 
         if status == SUCCESS and count == 0:
             self.eof = True
-            self.close()
+            self.handle_close()
             return
 
         if status == SUCCESS and count < 0:
