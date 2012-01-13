@@ -328,11 +328,8 @@ class TestStreamReadable_SuccessBytes(TestStream_Base):
         self.stream.handle_write = lambda: 1/0
         self.stream.recv_complete = self.recv_complete
         self.stream.handle_read()
-        self.assertEqual(self.count, 2)
+        self.assertEqual(self.count, 1)
         self.assertFalse(self.stream.recv_pending)
-
-    def unset_readable(self, stream):
-        self.count += 1
 
     def recv_complete(self, octets):
         self.assertEqual(octets, "abc")
