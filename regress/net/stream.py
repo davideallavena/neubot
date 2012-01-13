@@ -310,15 +310,13 @@ class TestStreamReadable_RecvBlocked_NoRecvPending(TestStream_Base):
     def runTest(self):
         self.count = 0
         self.stream.sock.sorecv = lambda k: (45,"")     #XXX
-        self.stream.handle_write = lambda: None
+        self.stream.handle_write = self._handle_write
         self.stream.recv_blocked = True
         self.stream.handle_read()
-        self.assertEqual(self.count, 2)
+        self.assertEqual(self.count, 1)
+        self.assertFalse(self.recv_blocked)
 
-    def set_writable(self, stream):
-        self.count += 1
-
-    def unset_readable(self, stream):
+    def _handle_write(self):
         self.count += 1
 
 class TestStreamReadable_SuccessBytes(TestStream_Base):
