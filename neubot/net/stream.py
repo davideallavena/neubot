@@ -468,6 +468,7 @@ class Connector(Pollable):
                     sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, rcvbuf)
                 if sndbuf:
                     sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, sndbuf)
+
                 sock.setblocking(False)
                 result = sock.connect_ex(ainfo[4])
                 if result not in INPROGRESS:
@@ -475,6 +476,7 @@ class Connector(Pollable):
 
                 self.sock = sock
                 self.timestamp = utils.ticks()
+
                 self.poller.set_writable(self)
                 if result != 0:
                     LOG.debug("* Connecting to %s ..." % str(endpoint))
@@ -555,6 +557,7 @@ class Listener(Pollable):
                     lsock.setsockopt(socket.SOL_SOCKET,socket.SO_RCVBUF,rcvbuf)
                 if sndbuf:
                     lsock.setsockopt(socket.SOL_SOCKET,socket.SO_SNDBUF,sndbuf)
+
                 lsock.setblocking(False)
                 lsock.bind(ainfo[4])
                 # Probably the backlog here is too big
