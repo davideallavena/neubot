@@ -514,12 +514,10 @@ class Connector(Pollable):
     def handle_close(self):
         self.parent._connection_failed(self, None)
 
-class Listener(Pollable):
-    def __init__(self, poller, parent):
-        Pollable.__init__(self)
-        self.poller = poller
+class Listener(asyncore.dispatcher):
+    def __init__(self, parent):
+        asyncore.dispatcher.__init__(self)
         self.parent = parent
-        self.lsock = None
         self.endpoint = None
         self.family = 0
 
@@ -529,7 +527,7 @@ class Listener(Pollable):
     def __repr__(self):
         return "listener at %s" % str(self.endpoint)
 
-    def listen(self, endpoint, conf):
+    def start_listen(self, endpoint, conf):
         self.endpoint = endpoint
         self.family = socket.AF_INET
         if conf["net.stream.ipv6"]:
@@ -549,22 +547,22 @@ class Listener(Pollable):
         for ainfo in addrinfo:
             try:
 
-                lsock = socket.socket(self.family, socket.SOCK_STREAM)
-                lsock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                self.create_socket(self.family, socket.SOCK_STREAM)
+                self.socket.setsockopt(socket.SOL_SOCKET,
+                  socket.SO_REUSEADDR, 1)
                 if rcvbuf:
-                    lsock.setsockopt(socket.SOL_SOCKET,socket.SO_RCVBUF,rcvbuf)
+                    self.socket.setsockopt(socket.SOL_SOCKET,
+                      socket.SO_RCVBUF, rcvbuf)
                 if sndbuf:
-                    lsock.setsockopt(socket.SOL_SOCKET,socket.SO_SNDBUF,sndbuf)
+                    self.socket.setsockopt(socket.SOL_SOCKET,
+                      socket.SO_SNDBUF, sndbuf)
 
-                lsock.setblocking(False)
-                lsock.bind(ainfo[4])
+                self.bind(ainfo[4])
                 # Probably the backlog here is too big
-                lsock.listen(128)
+                self.listen(128)
 
                 LOG.debug("* Listening at %s" % str(self.endpoint))
 
-                self.lsock = lsock
-                self.poller.set_readable(self)
                 self.parent.started_listening(self)
                 return
 
@@ -574,17 +572,17 @@ class Listener(Pollable):
         LOG.error("* Bind %s failed: %s" % (self.endpoint, last_exception))
         self.parent.bind_failed(self, last_exception)
 
-    def fileno(self):
-        return self.lsock.fileno()
-
     #
     # Catch all types of exception because an error in
     # connection_made() MUST NOT cause the server to stop
     # listening for new connections.
     #
-    def handle_read(self):
+    def handle_accept(self):
         try:
-            sock, sockaddr = self.lsock.accept()
+            result = self.accept()
+            if not result:
+                return
+            sock = result[0]
             sock.setblocking(False)
             self.parent.connection_made(sock)
         except (KeyboardInterrupt, SystemExit):
@@ -595,6 +593,11 @@ class Listener(Pollable):
 
     def handle_close(self):
         self.parent.bind_failed(self, None)     # XXX
+        self.close()
+
+    # The listener is never writable
+    def writable(self):
+        return False
 
 class StreamHandler(object):
     def __init__(self, poller):
