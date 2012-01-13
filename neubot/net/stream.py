@@ -637,7 +637,7 @@ class GenericProtocolStream(Stream):
         if self.kind == "discard":
             self.start_recv()
         elif self.kind == "chargen":
-            self.start_send(self.buffer)
+            self.start_send(BUCKET_DATA, self.buffer)
         elif self.kind == "echo":
             self.start_recv()
         else:
@@ -646,13 +646,13 @@ class GenericProtocolStream(Stream):
     def recv_complete(self, octets):
         self.start_recv()
         if self.kind == "echo":
-            self.start_send(octets)
+            self.start_send(BUCKET_DATA, octets)
 
     def send_complete(self):
         if self.kind == "echo":
             self.start_recv()
             return
-        self.start_send(self.buffer)
+        self.start_send(BUCKET_DATA, self.buffer)
 
 CONFIG.register_defaults({
     # General variables
