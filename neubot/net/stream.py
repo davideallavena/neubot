@@ -46,7 +46,6 @@ from neubot.config import CONFIG
 from neubot.log import LOG
 from neubot.net.dns import getaddrinfo
 from neubot.net.poller import POLLER
-from neubot.net.poller import Pollable
 
 from neubot import system
 from neubot import utils
