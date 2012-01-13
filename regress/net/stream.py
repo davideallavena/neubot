@@ -69,7 +69,7 @@ class FakeSocket(object):
 #
 class TestStream_Base(unittest.TestCase):
     def setUp(self):
-        self.stream = stream.Stream(self)
+        self.stream = stream.Stream()
         self.stream.attach(self, FakeSocket(), CONFIG)
 
     def connection_lost(self, stream):
@@ -237,7 +237,7 @@ class TestStreamError_Multiple(TestStreamClose_Base):
 class TestStreamStartRecv_Barrier1(unittest.TestCase):
     def runTest(self):
         """Make sure start_recv honours pending and complete flags"""
-        s = stream.Stream(None)
+        s = stream.Stream()
         for a,b,c in [(0,0,1),(0,1,0),(0,1,1),(1,0,0),(1,0,1),(1,1,0),(1,1,1)]:
             s.close_complete = a
             s.close_pending = b
@@ -254,7 +254,7 @@ class TestStreamStartRecv_Barrier1(unittest.TestCase):
 class TestStreamStartRecv_Barrier2(unittest.TestCase):
     def runTest(self):
         """Make sure start_recv() honours recv_blocked"""
-        s = stream.Stream(None)
+        s = stream.Stream()
         s.recv_blocked = True
         s.start_recv()
         self.assertTrue(s.recv_pending)
@@ -269,7 +269,7 @@ class TestStreamStartRecv_Barrier2(unittest.TestCase):
 class TestStreamStartRecv_WeNoInvokeReadableImmediately(unittest.TestCase):
     def runTest(self):
         """Make sure start_recv does not invoked readable directly"""
-        s = stream.Stream(self)
+        s = stream.Stream()
         self.isreadable = False
         s.start_recv()
         self.assertTrue(self.isreadable)
@@ -285,7 +285,7 @@ class TestStreamStartRecv_WeNoInvokeReadableImmediately(unittest.TestCase):
 class TestStreamStartRecv_SSLKickOff(unittest.TestCase):
     def runTest(self):
         """Make sure we kick off SSL on the server side"""
-        s = stream.Stream(self)
+        s = stream.Stream()
         s.recv_ssl_needs_kickoff = True
         s.sock = self
         self.isreadable = False
@@ -405,7 +405,7 @@ class TestStreamReadable_UnknownStatus(TestStream_Base):
 class TestStreamSend_ReadSendQueue_Empty(unittest.TestCase):
     def runTest(self):
         """Make sure send queue starts empty and remains empty if we push ''"""
-        s = stream.Stream(None)
+        s = stream.Stream()
         self.assertEqual(s.read_send_queue(), "")
         s.start_send("")
         self.assertEqual(s.read_send_queue(), "")
@@ -423,7 +423,7 @@ class TestStreamSend_ReadSendQueue_Empty(unittest.TestCase):
 class TestStreamSend_ReandSendQueue_NotEmpty(unittest.TestCase):
     def runTest(self):
         """Gain confidence that the send queue is not buggy"""
-        s = stream.Stream(self)
+        s = stream.Stream()
 
         # Generate messages
         messages = []
