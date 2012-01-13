@@ -286,7 +286,7 @@ class TestStreamStartRecv_SSLKickOff(unittest.TestCase):
         s.sock = self
         self.has_read = False
         s.start_recv()
-        self.assertTrue(self.recv_pending)
+        self.assertTrue(s.recv_pending)
         self.assertTrue(self.has_read)
 
     def sorecv(self, n):
