@@ -314,7 +314,7 @@ class TestStreamReadable_RecvBlocked_NoRecvPending(TestStream_Base):
         self.stream.recv_blocked = True
         self.stream.handle_read()
         self.assertEqual(self.count, 1)
-        self.assertFalse(self.recv_blocked)
+        self.assertFalse(self.stream.recv_blocked)
 
     def _handle_write(self):
         self.count += 1
