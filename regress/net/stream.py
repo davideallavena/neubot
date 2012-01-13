@@ -284,14 +284,10 @@ class TestStreamStartRecv_SSLKickOff(unittest.TestCase):
         s = stream.Stream()
         s.recv_ssl_needs_kickoff = True
         s.sock = self
-        self.isreadable = False
         self.has_read = False
         s.start_recv()
-        self.assertTrue(self.isreadable)
+        self.assertTrue(self.recv_pending)
         self.assertTrue(self.has_read)
-
-    def set_readable(self, stream):
-        self.isreadable = True
 
     def sorecv(self, n):
         self.has_read = True
