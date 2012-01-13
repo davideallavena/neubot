@@ -648,7 +648,7 @@ class StreamHandler(object):
 
 class GenericHandler(StreamHandler):
     def connection_made(self, sock, rtt=0):
-        stream = GenericProtocolStream(self.poller)
+        stream = GenericProtocolStream()
         stream.kind = self.conf["net.stream.proto"]
         stream.attach(self, sock, self.conf)
 
@@ -657,8 +657,8 @@ class GenericHandler(StreamHandler):
 # protocols like discard, chargen, and echo.
 #
 class GenericProtocolStream(Stream):
-    def __init__(self, poller):
-        Stream.__init__(self, poller)
+    def __init__(self):
+        Stream.__init__(self)
         self.buffer = None
         self.kind = ""
 
@@ -666,7 +666,7 @@ class GenericProtocolStream(Stream):
         self.buffer = "A" * self.conf["net.stream.chunk"]
         duration = self.conf["net.stream.duration"]
         if duration >= 0:
-            POLLER.sched(duration, self._do_close)
+            LOG.warning("duration: not implemented")
         if self.kind == "discard":
             self.start_recv()
         elif self.kind == "chargen":
@@ -675,9 +675,6 @@ class GenericProtocolStream(Stream):
             self.start_recv()
         else:
             self.close()
-
-    def _do_close(self, *args, **kwargs):
-        self.close()
 
     def recv_complete(self, octets):
         self.start_recv()
@@ -747,7 +744,7 @@ def main(args):
         common.write_help(sys.stderr, "net.stream", "TCP bulk transfer test")
         sys.exit(1)
 
-    handler = GenericHandler(POLLER)
+    handler = GenericHandler()
     handler.configure(conf)
 
     if conf["net.stream.listen"]:
@@ -761,7 +758,7 @@ def main(args):
     else:
         handler.connect(endpoint, count=conf["net.stream.clients"])
 
-    POLLER.loop()
+    asyncore.loop()
     sys.exit(0)
 
 if __name__ == "__main__":
