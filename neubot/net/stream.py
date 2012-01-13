@@ -134,15 +134,13 @@ class SocketWrapper(object):
 # the send and recv path are documented, respectively, in
 # `doc/sendpath.png` and `doc/recvpath.png`.
 #
-class Stream(Pollable):
-    def __init__(self, poller):
-        Pollable.__init__(self)
-        self.poller = poller
+class Stream(asyncore.dispatcher):
+    def __init__(self):
+        asyncore.dispatcher.__init__(self)
         self.parent = None
         self.conf = None
 
         self.sock = None
-        self.filenum = -1
         self.myname = None
         self.peername = None
         self.logname = None
@@ -167,15 +165,14 @@ class Stream(Pollable):
     def __repr__(self):
         return "stream %s" % self.logname
 
-    def fileno(self):
-        return self.filenum
-
     def attach(self, parent, sock, conf):
+
+        # Tell asyncore we exist
+        self.set_socket(sock)
 
         self.parent = parent
         self.conf = conf
 
-        self.filenum = sock.fileno()
         self.myname = sock.getsockname()
         self.peername = sock.getpeername()
         self.logname = str((self.myname, self.peername))
@@ -202,6 +199,9 @@ class Stream(Pollable):
         else:
             self.sock = SocketWrapper(sock)
 
+        # Tell asyncore we're already connected
+        self.connected = True
+
         self.connection_made()
 
     def connection_made(self):
@@ -225,7 +225,7 @@ class Stream(Pollable):
         self.close_pending = True
         if self.send_pending or self.close_complete:
             return
-        self.poller.close(self)
+        self.handle_close()
 
     def handle_close(self):
         if self.close_complete:
@@ -246,9 +246,16 @@ class Stream(Pollable):
                 LOG.exception("Error in atclosev")
 
         self.send_octets = None
-        self.sock.soclose()
+        asyncore.dispatcher.close(self)
+
+        # sock is None if we fail in attach()
+        if self.sock:
+            self.sock.soclose()
 
     # Recv path
+
+    def readable(self):
+        return self.recv_pending or self.recv_blocked
 
     def start_recv(self):
         if (self.close_complete or self.close_pending
@@ -259,8 +266,6 @@ class Stream(Pollable):
 
         if self.recv_blocked:
             return
-
-        self.poller.set_readable(self)
 
         #
         # The client-side of an SSL connection must send the HELLO
@@ -281,9 +286,6 @@ class Stream(Pollable):
 
     def handle_read(self):
         if self.recv_blocked:
-            self.poller.set_writable(self)
-            if not self.recv_pending:
-                self.poller.unset_readable(self)
             self.recv_blocked = False
             self.handle_write()
             return
@@ -291,11 +293,8 @@ class Stream(Pollable):
         status, octets = self.sock.sorecv(MAXBUF)
 
         if status == SUCCESS and octets:
-
             self.bytes_recv_tot += len(octets)
             self.recv_pending = False
-            self.poller.unset_readable(self)
-
             self.recv_complete(octets)
             return
 
@@ -303,8 +302,6 @@ class Stream(Pollable):
             return
 
         if status == WANT_WRITE:
-            self.poller.unset_readable(self)
-            self.poller.set_writable(self)
             self.send_blocked = True
             return
 
@@ -323,6 +320,9 @@ class Stream(Pollable):
         pass
 
     # Send path
+
+    def writable(self):
+        return self.send_pending or self.send_blocked
 
     def read_send_queue(self):
         octets = None
@@ -362,16 +362,8 @@ class Stream(Pollable):
 
         self.send_pending = True
 
-        if self.send_blocked:
-            return
-
-        self.poller.set_writable(self)
-
     def handle_write(self):
         if self.send_blocked:
-            self.poller.set_readable(self)
-            if not self.send_pending:
-                self.poller.unset_writable(self)
             self.send_blocked = False
             self.handle_read()
             return
@@ -388,7 +380,6 @@ class Stream(Pollable):
                     return
 
                 self.send_pending = False
-                self.poller.unset_writable(self)
 
                 self.send_complete()
                 if self.close_pending:
@@ -397,7 +388,6 @@ class Stream(Pollable):
 
             if count < len(self.send_octets):
                 self.send_octets = buffer(self.send_octets, count)
-                self.poller.set_writable(self)
                 return
 
             raise RuntimeError("Sent more than expected")
@@ -406,8 +396,6 @@ class Stream(Pollable):
             return
 
         if status == WANT_READ:
-            self.poller.unset_writable(self)
-            self.poller.set_readable(self)
             self.recv_blocked = True
             return
 
