@@ -120,6 +120,7 @@ class TestStreamClose_Simple(TestStreamClose_Base):
     def runTest(self):
         self.assertFalse(self.stream.send_pending)
         self.lost = False
+        self.stream.sock.sock.close = lambda: None
         self.stream.close()
         self.assertTrue(self.stream.close_complete)
         self.assertTrue(self.lost)
@@ -134,6 +135,7 @@ class TestStreamClose_Simple(TestStreamClose_Base):
 class TestStreamClose_Multiple(TestStreamClose_Base):
     def runTest(self):
         self.count = 0
+        self.stream.sock.sock.close = lambda: None
         self.stream.close()
         self.stream.handle_close()
         self.stream.close()
@@ -179,6 +181,7 @@ class TestStreamError_Simple(TestStreamClose_Base):
     def runTest(self):
         self.assertFalse(self.stream.send_pending)
         self.lost = False
+        self.stream.sock.sock.close = lambda: None
         self.stream.handle_close()
         self.assertTrue(self.stream.close_complete)
         self.assertTrue(self.lost)
@@ -194,6 +197,7 @@ class TestStreamError_SendPending(TestStreamClose_Base):
     def runTest(self):
         self.lost = False
         self.stream.send_pending = True
+        self.stream.sock.sock.close = lambda: None
         self.stream.handle_close()
         self.assertTrue(self.stream.close_complete)
         self.assertTrue(self.lost)
@@ -208,6 +212,7 @@ class TestStreamError_SendPending(TestStreamClose_Base):
 class TestStreamError_Multiple(TestStreamClose_Base):
     def runTest(self):
         self.count = 0
+        self.stream.sock.sock.close = lambda: None
         self.stream.handle_close()
         self.stream.close()
         self.stream.handle_close()
@@ -355,6 +360,8 @@ class TestStreamReadable_EOF(TestStream_Base):
     def runTest(self):
         self.stream.sock.sorecv = lambda k: (stream.SUCCESS, "")
         self.stream.handle_write = lambda: 1/0
+        self.stream.parent.connection_lost = lambda stream: None
+        self.stream.sock.sock.close = lambda: None
         self.stream.handle_read()
         self.assertTrue(self.stream.eof)
 
