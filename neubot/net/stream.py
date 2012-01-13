@@ -352,8 +352,7 @@ class Stream(asyncore.dispatcher):
                 return
 
             if count < len(bucket_val):
-                self.send_queue.append((BUCKET_DATA,
-                  buffer(bucket_val, count)))
+                self.send_queue.append((BUCKET_DATA, bucket_val[count:]))
                 return
 
             raise RuntimeError("Sent more than expected")
