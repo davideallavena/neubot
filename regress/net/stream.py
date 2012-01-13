@@ -260,7 +260,7 @@ class TestStreamStartRecv_Barrier2(unittest.TestCase):
         self.assertTrue(s.recv_pending)
 
 #
-# Make sure that readable() is _not_ invoked immediately
+# Make sure that handle_read() is _not_ invoked immediately
 # just aftert start_recv().  It used to be in the past but
 # now it's not the case anymore.
 # If we're wrong self.sock.sorecv() is invoked and this
@@ -270,12 +270,8 @@ class TestStreamStartRecv_WeNoInvokeReadableImmediately(unittest.TestCase):
     def runTest(self):
         """Make sure start_recv does not invoked readable directly"""
         s = stream.Stream()
-        self.isreadable = False
         s.start_recv()
-        self.assertTrue(self.isreadable)
-
-    def set_readable(self, stream):
-        self.isreadable = True
+        self.assertTrue(s.recv_pending)
 
 #
 # Make sure that, when ssl needs kickoff, sorecv() is
