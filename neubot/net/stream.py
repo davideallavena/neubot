@@ -579,8 +579,7 @@ class Listener(asyncore.dispatcher):
         return False
 
 class StreamHandler(object):
-    def __init__(self, poller):
-        self.poller = poller
+    def __init__(self):
         self.conf = {}
         self.epnts = collections.deque()
         self.bad = collections.deque()
@@ -591,8 +590,8 @@ class StreamHandler(object):
         self.conf = conf
 
     def listen(self, endpoint):
-        listener = Listener(self.poller, self)
-        listener.listen(endpoint, self.conf)
+        listener = Listener(self)
+        listener.start_listen(endpoint, self.conf)
 
     def bind_failed(self, listener, exception):
         pass
@@ -611,8 +610,8 @@ class StreamHandler(object):
 
     def _next_connect(self):
         if self.epnts:
-            connector = Connector(self.poller, self)
-            connector.connect(self.epnts.popleft(), self.conf)
+            connector = Connector(self)
+            connector.start_connect(self.epnts.popleft(), self.conf)
         else:
             if self.bad:
                 while self.bad:
