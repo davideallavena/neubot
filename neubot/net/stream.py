@@ -428,20 +428,30 @@ class Stream(Pollable):
     def send_complete(self):
         pass
 
-class Connector(Pollable):
-    def __init__(self, poller, parent):
-        Pollable.__init__(self)
-        self.poller = poller
+class Connector(asyncore.dispatcher):
+    def __init__(self, parent):
+        asyncore.dispatcher.__init__(self)
         self.parent = parent
-        self.sock = None
         self.timestamp = 0
         self.endpoint = None
         self.family = 0
 
+    # The connector is never readable
+    def readable(self):
+        return False
+
+    #
+    # This is fired just after connect() and we must ignore
+    # it because the descriptor will be managed by another
+    # class.
+    #
+    def handle_write(self):
+        pass
+
     def __repr__(self):
         return "connector to %s" % str(self.endpoint)
 
-    def connect(self, endpoint, conf):
+    def start_connect(self, endpoint, conf):
         self.endpoint = endpoint
         self.family = socket.AF_INET
         if conf["net.stream.ipv6"]:
@@ -461,24 +471,19 @@ class Connector(Pollable):
         for ainfo in addrinfo:
             try:
 
-                sock = socket.socket(self.family, socket.SOCK_STREAM)
+                self.create_socket(self.family, socket.SOCK_STREAM)
                 if rcvbuf:
-                    sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, rcvbuf)
+                    self.socket.setsockopt(socket.SOL_SOCKET,
+                      socket.SO_RCVBUF, rcvbuf)
                 if sndbuf:
-                    sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, sndbuf)
+                    self.socket.setsockopt(socket.SOL_SOCKET,
+                      socket.SO_SNDBUF, sndbuf)
 
-                sock.setblocking(False)
-                result = sock.connect_ex(ainfo[4])
-                if result not in INPROGRESS:
-                    raise socket.error(result, os.strerror(result))
-
-                self.sock = sock
+                self.connect(ainfo[4])
                 self.timestamp = utils.ticks()
 
-                self.poller.set_writable(self)
-                if result != 0:
-                    LOG.debug("* Connecting to %s ..." % str(endpoint))
-                    self.parent.started_connecting(self)
+                LOG.debug("* Connecting to %s ..." % str(endpoint))
+                self.parent.started_connecting(self)
                 return
 
             except socket.error, exception:
@@ -487,32 +492,18 @@ class Connector(Pollable):
         LOG.error("* Connection to %s failed: %s" % (endpoint, last_exception))
         self.parent._connection_failed(self, last_exception)
 
-    def fileno(self):
-        return self.sock.fileno()
-
-    def handle_write(self):
-        self.poller.unset_writable(self)
-
-        # See http://cr.yp.to/docs/connect.html
-        try:
-            self.sock.getpeername()
-        except socket.error, exception:
-            # MacOSX getpeername() fails with EINVAL
-            if exception[0] in (errno.ENOTCONN, errno.EINVAL):
-                try:
-                    self.sock.recv(MAXBUF)
-                except socket.error, exception2:
-                    exception = exception2
-            LOG.error("* Connection to %s failed: %s" % (self.endpoint,
-              exception))
-            self.parent._connection_failed(self, exception)
-            return
-
+    def handle_connect(self):
         rtt = utils.ticks() - self.timestamp
-        self.parent._connection_made(self.sock, rtt)
+        #
+        # Del channel because the descriptor will be
+        # managed by another class.
+        #
+        self.del_channel()
+        self.parent._connection_made(self.socket, rtt)
 
     def handle_close(self):
         self.parent._connection_failed(self, None)
+        self.close()
 
 class Listener(asyncore.dispatcher):
     def __init__(self, parent):
