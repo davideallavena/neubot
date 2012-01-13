@@ -45,7 +45,6 @@ if __name__ == "__main__":
 from neubot.config import CONFIG
 from neubot.log import LOG
 from neubot.net.dns import getaddrinfo
-from neubot.net.poller import POLLER
 
 from neubot import system
 from neubot import utils
