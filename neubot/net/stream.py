@@ -326,7 +326,7 @@ class Stream(Pollable):
     # Send path
 
     def read_send_queue(self):
-        octets = ""
+        octets = None
 
         while self.send_queue:
             octets = self.send_queue[0]
